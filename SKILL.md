@@ -55,6 +55,40 @@ python scripts/build_apkg.py input.json output.apkg --media-dir audio
 ```
 3. 卡片导入 Anki 后背面会显示喇叭图标，点击播放发音。
 
+## 复用已有音频（不重跑 TTS）
+
+如果用户已经有现成的 mp3 音频目录（例如之前跑过 `tts_audio.py` 留下的），**不要**重新生成，直接：
+
+1. 在 JSON 的每个 note 里加 `audio` 字段，值为对应的 mp3 文件名（如 `"audio": "suggest.mp3"`）。
+2. 打包时直接用 `--media-dir` 指向已有音频目录：
+   ```
+   python scripts/build_apkg.py input.json output.apkg --media-dir <已有audio目录>
+   ```
+3. 脚本会自动把音频嵌进 apkg，并在背面追加 `[sound:xx.mp3]`。
+
+注意：audio 文件名要和目录里的 mp3 严格对应（空格用下划线、大小写敏感）。
+
+## 记忆增强版词卡（单词专用）
+
+背单词时，如果用户希望「不是干巴巴的中英对照」，可按下面的四段 HTML 结构输出背面，正面仍是单词（或短语）：
+
+```html
+<b>词性. 核心释义</b><br>
+🔤 <b>词根</b>：前缀 + 词根(=英文义) + 后缀 → 推导义<br>
+🌳 <b>同根/搭配</b>：列 2–3 个同根词或高频搭配（用破折号注释）<br>
+💡 <b>联想</b>：谐音或画面钩子（只给真正难记的词用，简单词可整行删掉，不要硬凑）<br>
+📖 <b>语境</b>：一句和主题（如生态/商务/医学）相关的英文例句<br>
+<i>例句中文翻译。</i>
+```
+
+设计原则：
+- **释义只给最常用 1 个**，其他义项用 `；` 短列，不要堆砌全部词典义。
+- **词根必须真拆**：不确定的词根宁可写「拆解：out(外)+line(线)」这种可验证的组合，不要编造拉丁/希腊词源。
+- **联想只用于难词**（如 vulnerable、cease、induce）；简单词（suggest、bear、spot）可以跳过这一段，避免卡片过载。
+- **例句必须扣主题**：用户给什么主题就写什么主题的句子，不要用通用教科书例句。
+- 同义词辨析、易混词对比用 🌳 段补一句（如 preservation / conservation / protection 的区别）。
+- 字段名仍叫 `back`，`front` 仍是单词；deck_name 可加后缀「（词根+联想+语境）」以便和原卡组区分。
+
 ## Cloze 挖空卡
 
 - `model: "cloze"`，`front` 内含 `{{c1::挖空内容}}`，如 `单词 {{c1::apple}} 的中文是？`；`back` 可放额外注释（可留空）。
@@ -66,6 +100,11 @@ python scripts/build_apkg.py input.json output.apkg --media-dir audio
 - 数学/公式类优先 LaTeX，保持与 Anki 标准模板一致；提醒用户 Anki 需开启 LaTeX 渲染（默认开启）。
 - 按主题组织卡组层级（如 `科目::章节::小节`），便于复习。
 - 批量内容逐条核对，避免错字、漏卡、公式转义错误。
+- **JSON 内嵌引号避坑（高频踩坑）**：`front` / `back` 字段是 JSON 字符串，里面若用 HTML 写中文强调、引用、谐音注释，**严禁再出现 ASCII 双引号 `"`**（哪怕嵌套在中文里），否则 `json.load` 直接报 `Expecting ',' delimiter`。写法二选一：
+  - 用中文书名号「」：`谐音「稀客」`
+  - 用中文弯引号 "…"：`"伙伴"`
+  - 例句里若必须出现英文双引号，写成 HTML 实体 `&quot;`。
+  - 写完 JSON 先跑一句 `python -c "import json;json.load(open('x.json',encoding='utf-8'))"` 校验，通过再调 build_apkg.py。
 
 ## 导入提示（交付时附带）
 
